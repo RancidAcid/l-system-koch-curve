@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Infinite Lindenmayer Systems (L-Systems)</title>
+    <style>
+        body {
+            background-color: #222;
+            color: white;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        canvas {
+            border: 2px solid #444;
+            cursor: crosshair;
+            margin-top: 10px;
+        }
+        
+        .controls {
+            margin: 10px auto;
+        }
+        
+        button {
+            background-color: #444;
+            border: none;
+            color: white;
+            padding: 8px 16px;
+            cursor: pointer;
+            margin: 0 5px;
+        }
+        
+        button:hover {
+            background-color: #666;
+        }
+        
+        .info {
+            font-size: 14px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Infinite Lindenmayer Systems (L-Systems)</h1>
+    
+    <div class="controls">
+        <button id="reset">Reset View</button>
+        <button id="addIteration">Add Iteration</button>
+    </div>
+    <canvas id="mandelbrotCanvas" width="800" height="600"></canvas>
+    <div class="info">
+        <p>Iterations: <span id="iterationCount">0</span> | String Length: <span id="zoomLevel">1</span></p>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('mandelbrotCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        let axiom = "F";
+        let rules = {
+            "F": "F+F-F-F+F" 
+        };
+        let iterations = 0;
+        let angle = 60;
+        let length = 10;
+        
+        function generateLSystem(axiom, rules, iterations) {
+            let result = axiom;
+            for (let i = 0; i < iterations; i++) {
+                let newResult = "";
+                for (let char of result) {
+                    newResult += rules[char] || char;
+                }
+                result = newResult;
+            }
+            return result;
+        }
+        
+        function drawLSystem(lsystem) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            const iterationFactor = Math.min(9, iterations);
+            length = Math.max(0.5, 800 / Math.pow(4, iterationFactor/3));
+            
+            let startX = canvas.width / 4;
+            let startY = canvas.height / 2;
+            
+            const maxSegmentsToDraw = 100000;
+            const drawEvery = Math.max(1, Math.floor(lsystem.length / maxSegmentsToDraw));
+            
+            let x = startX;
+            let y = startY;
+            let direction = 0;
+            let stack = [];
+            
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.strokeStyle = 'white';
+            
+            ctx.lineWidth = Math.max(0.5, 1.5 / (Math.log(iterations + 2)));
+            
+            let segmentCount = 0;
+            for (let i = 0; i < lsystem.length; i++) {
+                const char = lsystem[i];
+                
+                if (lsystem.length > maxSegmentsToDraw && i % drawEvery !== 0) {
+                    continue;
+                }
+                
+                switch(char) {
+                    case 'F': 
+                        x += length * Math.cos(direction * Math.PI / 180);
+                        y += length * Math.sin(direction * Math.PI / 180);
+                        ctx.lineTo(x, y);
+                        segmentCount++;
+                        
+                        if (segmentCount % 10000 === 0) {
+                            ctx.stroke();
+                            ctx.beginPath();
+                            ctx.moveTo(x, y);
+                        }
+                        break;
+                    case '+':
+                        direction += angle;
+                        break;
+                    case '-':
+                        direction -= angle;
+                        break;
+                    case '[':
+                        stack.push({x, y, direction});
+                        break;
+                    case ']':
+                        let pos = stack.pop();
+                        x = pos.x;
+                        y = pos.y;
+                        direction = pos.direction;
+                        ctx.stroke();
+                        ctx.beginPath();
+                        ctx.moveTo(x, y);
+                        break;
+                }
+            }
+            
+            ctx.stroke();
+            
+            if (iterations > 8) {
+                ctx.fillStyle = 'rgba(255,255,255,0.7)';
+                ctx.font = '14px Arial';
+                ctx.fillText('Drawing partial view - pattern terlalu komplex', 20, 30);
+                ctx.fillText(`Rendered ${segmentCount} of ${lsystem.length} segments`, 20, 50);
+            }
+        }
+        
+        function renderLSystem() {
+            const lSystemString = generateLSystem(axiom, rules, iterations);
+            drawLSystem(lSystemString);
+            document.getElementById('iterationCount').textContent = iterations;
+            document.getElementById('zoomLevel').textContent = lSystemString.length;
+        }
+        
+        document.getElementById('addIteration').addEventListener('click', function() {
+            iterations++;
+            renderLSystem();
+        });
+        
+        document.getElementById('reset').addEventListener('click', function() {
+            iterations = 0;
+            renderLSystem();
+        });
+        
+        renderLSystem();
+    </script>
+</body>
+</html>
